@@ -1,0 +1,121 @@
+#include <SoftwareSerial.h>
+SoftwareSerial bluetooth(10, 11);
+const int IN1 = 4;
+const int IN2 = 7;
+const int IN3 = 6;
+const int IN4 = 5;
+const int trigPin = 8;
+const int echoPin = 9;
+
+String incomingCommand = "";
+unsigned long lastCharTime = 0;
+const unsigned long commandTimeout = 150;
+
+void setup() {
+  bluetooth.begin(9600);
+  Serial.begin(9600);
+
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
+  Serial.println("Voice + Remote Controlled Car Ready");
+}
+
+void loop() {
+  while (bluetooth.available()) {
+    char c = bluetooth.read();
+    if (isPrintable(c)) {
+      incomingCommand += c;
+      lastCharTime = millis();
+    }
+  }
+  if (incomingCommand.length() > 0 && millis() - lastCharTime > commandTimeout) {
+    incomingCommand.trim();
+    incomingCommand.toLowerCase();
+    Serial.println("Command: " + incomingCommand);
+    handleCommand(incomingCommand);
+    incomingCommand = "";
+  }
+}
+
+void handleCommand(String cmd) {
+  if (cmd == "f" || cmd == "forward") {
+    long d = getDistance();
+    Serial.print("Distance: ");
+    Serial.print(d);
+    Serial.println(" cm");
+    if (d < 20) {
+      Serial.println("Obstacle detected! Stopping.");
+      stopCar();
+    } else {
+      Serial.println("Moving Forward");
+      forward();
+    }
+  } else if (cmd == "b" || cmd == "backward") {
+    Serial.println("Moving Backward");
+    backward();
+  } else if (cmd == "l" || cmd == "left") {
+    Serial.println("Turning Left");
+    left();
+  } else if (cmd == "r" || cmd == "right") {
+    Serial.println("Turning Right");
+    right();
+  } else if (cmd == "s" || cmd == "stop") {
+    Serial.println("Stopping");
+    stopCar();
+  } else {
+    Serial.println("Unknown command: " + cmd);
+  }
+}
+
+long getDistance() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH, 10000); 
+  if (duration == 0) return 999;
+  return duration * 0.034 / 2;
+}
+
+void forward() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, HIGH);
+}
+
+void backward() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+}
+
+void left() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+
+void right() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+void stopCar() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+}
